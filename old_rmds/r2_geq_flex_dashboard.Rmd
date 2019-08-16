@@ -1,0 +1,270 @@
+---
+title: "GEQ Data from Monika's SAP"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(colorblindr)
+
+geq_tidy <- read_csv("geq_tidy.csv")
+
+geq_tidy <- geq_tidy %>% 
+  mutate(gender = as.factor(gender),
+         subscale = as.factor(subscale),
+         race_ehtn = as.factor(race_ethn))
+
+geq_gender_means <- geq_tidy %>% 
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(gender) %>% 
+  summarise(mean = mean(response, na.rm = TRUE))
+
+gender_labels <- c("1" = "Female", "2" = "Male")
+```
+
+# Distributions {data-icon="fa-chart-area"}
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Favorite
+
+```{r}
+geq_tidy %>%
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, gender) %>% 
+  summarize(global_score = mean(response, na.rm = TRUE)) %>% 
+  ggplot(aes(global_score, fill = gender)) +
+  geom_density(alpha = .7) +
+  scale_x_continuous(limits = c(0, 5)) +
+  scale_fill_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  theme_light() +
+  labs(title = "Density of GEQ global scores by gender",
+       subtitle = "67 women, 31 men; Possible score range: 1-5 (calculated by averaging all items)",
+       x = "GEQ Global Score",
+       y = "Density")
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Version 1
+
+```{r}
+geq_tidy %>%
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid) %>% 
+  summarize(global_score = mean(response, na.rm = TRUE)) %>% 
+  ggplot() +
+  geom_histogram(aes(global_score), binwidth = .5, alpha = .7, fill = "purple") +
+  theme_light() +
+  labs(title = "Distribution of GEQ global scores",
+       subtitle = "N = 98; Possible score range: 1-5 (calculated by averaging all items)",
+       x = "GEQ Global Score",
+       y = "Count")
+```
+
+### Version 2
+
+```{r}
+geq_tidy %>%
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, gender) %>% 
+  summarize(global_score = mean(response, na.rm = TRUE)) %>% 
+  ggplot() +
+  geom_histogram(aes(global_score, fill = gender), binwidth = .5, alpha = .7) +
+  facet_wrap(~gender, labeller = labeller(gender = gender_labels)) +
+  scale_fill_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  theme_light() +
+  labs(title = "Distribution of GEQ global scores by gender",
+       subtitle = "67 women, 31 men; Possible score range: 1-5 (calculated by averaging all items)",
+       x = "GEQ Global Score",
+       y = "Count")
+```
+
+### Version 3
+
+```{r}
+geq_tidy %>%
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, gender) %>% 
+  summarize(global_score = mean(response, na.rm = TRUE)) %>% 
+  ggplot(aes(global_score, fill = gender)) +
+  geom_histogram(alpha = .7, binwidth = .5, position = "identity") +
+  geom_vline(data = geq_gender_means, aes(xintercept = mean, color = gender)) +
+  scale_fill_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  scale_color_OkabeIto(name = "Mean Global Score",
+                       labels = c("Female (2.37)", "Male (2.13)")) +
+  theme_light() +
+  labs(title = "Distribution of GEQ global scores by gender",
+       subtitle = "67 women, 31 men; Possible score range: 1-5 (calculated by averaging all items)",
+       x = "GEQ Global Score",
+       y = "Count")
+```
+
+
+# Subscales {data-icon="fa-chart-bar"}
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Favorite
+
+```{r}
+geq_tidy %>% 
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, gender, subscale) %>% 
+  summarise(sub_score = mean(response, na.rm = TRUE)) %>% 
+  ggplot(aes(subscale, sub_score, color = gender)) +
+  geom_jitter(alpha = .5, width = .3) +
+  scale_x_discrete(labels = c("GP", "Inf", "SCOB", "SR", "WFP")) +
+  scale_y_continuous(limits = c(1, 5),
+                     labels = c("Never", "Once or twice", "Sometimes", "Often", "Many times")) +
+  scale_color_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  theme_light() +
+  labs(title = "GEQ subscale scores",
+       subtitle = "67 women, 31 men",
+       x = "GEQ Subscales",
+       y = "Subscale Scores")
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Academic Audience
+
+```{r}
+geq_tidy %>% 
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, gender, subscale) %>% 
+  summarize(sub_score = mean(response)) %>%
+  group_by(subscale, gender) %>% 
+  summarize(n = n(),
+            mean = mean(sub_score, na.rm = TRUE),
+            se = mean/sqrt(n)) %>% 
+#  ungroup() %>% 
+#  mutate(subscale = fct_reorder(subscale, mean)) %>% 
+  ggplot(aes(subscale, mean, color = gender)) + 
+  geom_errorbar(aes(ymin = mean + qnorm(.025)*se,
+                    ymax = mean + qnorm(.975)*se,
+                    group = gender),
+                size = .5,
+                width = .5,
+                alpha = .7) +
+  geom_point(size = 2) +
+  scale_x_discrete(labels = c("Gender Policing", "Infantilization", 
+                              "Sexually Crude/Offensive Behavior", "Sexist Remarks", 
+                              "Work/Family Policing")) +
+  scale_y_continuous(limits = c(1, 5)) +
+  scale_color_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  theme_light() +
+  labs(title = "Mean GEQ subscale scores by gender",
+       subtitle = "67 women, 31 men; 95% confidence intervals",
+       x = "GEQ Subscales",
+       y = "Mean Score") +
+  coord_flip()
+```
+
+### General Audience
+
+```{r}
+geq_tidy %>% 
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, gender, subscale) %>% 
+  summarize(sub_score = mean(response)) %>%
+  group_by(subscale, gender) %>% 
+  summarize(mean = mean(sub_score, na.rm = TRUE)) %>% 
+#  ungroup() %>% 
+#  mutate(subscale = fct_reorder(subscale, mean)) %>% 
+  ggplot(aes(subscale, mean, fill = gender)) + 
+  geom_col(position = "dodge", color = "white", alpha = .7) +
+  scale_x_discrete(labels = c("Gender Policing", "Infantilization", 
+                              "Sexually Crude/Offensive Behavior", "Sexist Remarks", 
+                              "Work/Family Policing")) +
+  scale_y_continuous(limits = c(0, 5)) +
+  scale_fill_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  theme_light() +
+  labs(title = "Women experience more harassment, 
+       but not by much",
+       subtitle = "67 women, 31 men; Possible score range: 1-5",
+       x = "GEQ Subscales",
+       y = "Mean Score") +
+  coord_flip()
+```
+
+# Does age matter? {data-icon="fa-chart-line"}
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Favorite
+
+```{r}
+geq_tidy %>%
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, age, gender) %>% 
+  summarise(global_score = mean(response, na.rm = TRUE)) %>% 
+  ggplot(aes(age, global_score, group = age)) +
+  geom_boxplot(alpha = .3) +
+  geom_jitter(aes(color = gender), alpha = .5, width = .3) +
+  scale_y_continuous(limits = c(1, 5)) +
+  scale_color_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  theme_light() +
+  labs(title = "Reporting of harassment does not seem to vary by years 
+       since high school",
+       x = "Age (proxy for years since high school)",
+       y = "GEQ Global Scores")
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Fit Line Instead of Boxplots
+
+```{r}
+geq_tidy %>%
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, age, gender) %>% 
+  summarise(global_score = mean(response, na.rm = TRUE)) %>% 
+  ggplot(aes(age, global_score)) +
+  geom_point(aes(color = gender), alpha = .5) +
+  geom_smooth(method = "lm") +
+  scale_y_continuous(limits = c(1, 5)) +
+  scale_color_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  theme_light() +
+  labs(title = "Reporting of harassment does not seem to vary by years 
+       since high school",
+       x = "Age (proxy for years since high school)",
+       y = "GEQ Global Scores")
+```
+
+### Women Only
+
+```{r}
+geq_tidy %>%
+  filter(gender == 1) %>% 
+  group_by(pid, age) %>% 
+  summarise(global_score = mean(response, na.rm = TRUE)) %>% 
+  ggplot(aes(age, global_score, group = age)) +
+  geom_boxplot() +
+  geom_jitter(color = "#e69f00", alpha = .5, width = .3) +
+  scale_y_continuous(limits = c(1, 5)) +
+  theme_light() +
+  labs(title = "Reporting of harassment does not seem to vary by years 
+       since high school",
+       subtitle = "Even when you only include women, like I did here",
+       x = "Age (proxy for years since high school)",
+       y = "GEQ Global Scores")
+```

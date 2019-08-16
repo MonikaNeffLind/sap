@@ -1,0 +1,356 @@
+---
+title: "SAP Data Cleaning"
+author: "Monika Lind"
+date: "8/14/2019"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r library}
+library(tidyverse)
+library(rio)
+library(here)
+library(BaylorEdPsych)
+# library(MissMech)
+library(Amelia)
+```
+
+```{r import}
+d1 <- rio::import(here::here("/raw_data/Lind_GS_F17.csv"), setclass = "tbl_df") %>% 
+  characterize()
+
+d2 <- rio::import(here::here("/raw_data/Lind_GS_F18.csv"), setclass = "tbl_df") %>% 
+  characterize()
+```
+
+```{r var_names_etc}
+names(d1) <- str_replace_all(names(d1), c("[.]" = "_", "Q" = "q"))
+
+d1_raw <- d1 %>%
+  mutate(pid = row_number(),
+         group = 1) %>% 
+  select(115:116, 3:4, 7:114) %>% 
+  rename(date = RecordedDate,
+         duration = Duration__in_seconds_,
+         race_ethn = q1_3,
+         gender = q346,
+         gender_text = q346_4_TEXT,
+         age = q348) %>% 
+  mutate(age = (age + 15)) %>% 
+  select(-7) %>% 
+  # remove troll ("11th dimension camera")
+  filter(pid != 65)
+
+names(d2) <- str_replace_all(names(d2), c("[.]" = "_", "Q" = "q"))
+
+d2_raw <- d2 %>%
+  mutate(pid = (row_number() + 437),
+         group = 2) %>% 
+  select(119:120, everything()) %>% 
+  rename(date = RecordedDate,
+         duration = Duration__in_seconds_,
+         race_ethn = q6,
+         gender = q62,
+         gender_text = q62_4_TEXT,
+         age = q63) %>% 
+  mutate(age = (age + 15)) %>% 
+  select(1:4, 7:8, 10:120) %>% 
+  # remove participant who did not complete any Q items
+  filter(pid != 439)
+```
+
+```{r geq_df}
+#group 1
+geq1_raw <- d1_raw %>% 
+  select(1:35)
+
+geq1_f <- geq1_raw %>% 
+  filter(gender == 1) %>% 
+  select(1:27) %>% 
+  rename(gp_17 = q360_1,
+         gp_18 = q360_2,
+         gp_19 = q360_3,
+         gp_20 = q360_4)
+
+geq1_m <- geq1_raw %>% 
+  filter(gender == 2) %>% 
+  select(1:23, 28:31) %>% 
+  rename(gp_17 = q362_1,
+         gp_18 = q362_2,
+         gp_19 = q362_3,
+         gp_20 = q362_4)
+
+geq1_nb <- geq1_raw %>% 
+  filter(gender == 3 | gender == 4 | gender == 5) %>% 
+  select(1:23, 32:35) %>% 
+  rename(gp_17 = q364_1,
+         gp_18 = q364_2,
+         gp_19 = q364_3,
+         gp_20 = q364_4)
+
+geq1_wide <- bind_rows(geq1_f, geq1_m, geq1_nb)
+
+geq1_long <- geq1_wide %>% 
+  rename(sr_1 = q352_1,
+         sr_2 = q352_2,
+         sr_3 = q352_3,
+         sr_4 = q352_4,
+         scob_5 = q354_1,
+         scob_6 = q354_2,
+         scob_7 = q354_3,
+         scob_8 = q354_4,
+         scob_9 = q354_5,
+         inf_10 = q356_1,
+         inf_11 = q356_2,
+         inf_12 = q356_3,
+         wfp_13 = q358_1,
+         wfp_14 = q358_2,
+         wfp_15 = q358_3,
+         wfp_16 = q358_4) %>% 
+  gather(item, response, -1:-7) %>% 
+  separate(item, c("subscale", "item"), sep = "_") %>% 
+  mutate(scale = "geq") %>% 
+  select(1:7, 11, 8:10)
+
+#group 2
+geq2_raw <- d2_raw %>% 
+  select(1:35)
+
+geq2_f <- geq2_raw %>% 
+  filter(gender == 1) %>% 
+  select(1:27) %>% 
+  rename(gp_17 = q69_1,
+         gp_18 = q69_2,
+         gp_19 = q69_3,
+         gp_20 = q69_4)
+
+geq2_m <- geq2_raw %>% 
+  filter(gender == 2) %>% 
+  select(1:23, 28:31) %>% 
+  rename(gp_17 = q70_1,
+         gp_18 = q70_2,
+         gp_19 = q70_3,
+         gp_20 = q70_4)
+
+geq2_nb <- geq2_raw %>% 
+  filter(gender == 3 | gender == 4 | gender == 5) %>% 
+  select(1:23, 32:35) %>% 
+  rename(gp_17 = q71_1,
+         gp_18 = q71_2,
+         gp_19 = q71_3,
+         gp_20 = q71_4)
+
+geq2_wide <- bind_rows(geq2_m, geq2_f, geq2_nb)
+
+geq2_long <- geq2_wide %>% 
+  rename(sr_1 = q65_1,
+         sr_2 = q65_2,
+         sr_3 = q65_3,
+         sr_4 = q65_4,
+         scob_5 = q66_1,
+         scob_6 = q66_2,
+         scob_7 = q66_3,
+         scob_8 = q66_4,
+         scob_9 = q66_5,
+         inf_10 = q67_1,
+         inf_11 = q67_2,
+         inf_12 = q67_3,
+         wfp_13 = q68_1,
+         wfp_14 = q68_2,
+         wfp_15 = q68_3,
+         wfp_16 = q68_4) %>% 
+  gather(item, response, -1:-7) %>% 
+  separate(item, c("subscale", "item"), sep = "_") %>% 
+  mutate(scale = "geq") %>% 
+  select(1:7, 11, 8:10)
+
+#both groups
+geq_long <- bind_rows(geq1_long, geq2_long)
+```
+
+```{r ibqh}
+#group 1
+ibqh1_long <- d1_raw %>% 
+  select(1:7, 48:59) %>% 
+  gather(item, response, -1:-7) %>% 
+  separate(item, c(NA, "item"), sep = "_") %>% 
+  mutate(scale = "ibqh") %>% 
+  select(1:7, 10, 8:9)
+
+#group 2
+ibqh2_long <- d2_raw %>% 
+  select(1:7, 48:59) %>% 
+  gather(item, response, -1:-7) %>% 
+  separate(item, c(NA, "item"), sep = "_") %>% 
+  mutate(scale = "ibqh") %>% 
+  select(1:7, 10, 8:9)
+
+#both groups
+ibqh_long_tmp <- bind_rows(ibqh1_long, ibqh2_long)
+
+ibqh_long <- ibqh_long_tmp %>% 
+  mutate(response = (response -1))
+```
+
+```{r tsc}
+#group 1
+tsc1_long <- d1_raw %>% 
+  select(1:7, 72:111) %>% 
+  gather(item, response, -1:-7) %>% 
+  separate(item, c(NA, "item"), sep = "_") %>% 
+  mutate(scale = "tsc") %>% 
+  select(1:7, 10, 8:9)
+
+#group 2
+tsc2_long <- d2_raw %>% 
+  select(1:7, 72:111) %>% 
+  gather(item, response, -1:-7) %>% 
+  separate(item, c(NA, "item"), sep = "_") %>% 
+  mutate(scale = "tsc") %>% 
+  select(1:7, 10, 8:9)
+
+tsc_long_tmp <- bind_rows(tsc1_long, tsc2_long)
+
+tsc_long <- tsc_long_tmp %>% 
+  mutate(response = (response -1))
+```
+
+```{r create_item-level_df}
+geq_ibqh_tsc_tmp <- bind_rows(tsc_long, geq_long, ibqh_long)
+
+geq_ibqh_tsc_raw <- geq_ibqh_tsc_tmp %>% 
+  mutate(group = as.factor(group),
+         race_ethn = as.factor(race_ethn),
+         gender = as.factor(gender),
+         item = as.double(item),
+         scale = as.factor(scale),
+         subscale = as.factor(subscale))
+```
+
+I calculated the global and sum scores for all the questionnaires, and I let any missing items render that score NA. I ran the Little MCAR test on that df and it was MCAR. I then created a long df with item-level data and a wide df with item-level data, and I tried to run Little MCAR on those two dfs. The long df was MAR, but it seemed weird because of its long format. The wide df wouldn't run with `LittleMCAR` or `TestMCARNormality`. I decided to abandon the Little MCAR test, test whether participants with missing data differed on TSC sum score, and do single imputation with Amelia.
+```{r missing_data}
+# 0.16% missing of IVs and DV
+sum(is.na(geq_ibqh_tsc_raw$response)) / nrow(geq_ibqh_tsc_raw)
+
+# 0.18% missing age
+sum(is.na(geq_ibqh_tsc_raw$age)) / nrow(geq_ibqh_tsc_raw)
+
+# MCAR test on questionnaire-level scores:
+geq_ibqh_tsc_mcar <- 
+  geq_ibqh_tsc_raw %>% 
+  group_by(pid, group, race_ethn, gender, age, scale) %>% 
+  summarise(score = sum(response)) %>% 
+  spread(scale, score) %>% 
+  mutate(geq = (geq / 20))
+
+LittleMCAR(geq_ibqh_tsc_mcar)
+# Not significant, hooray!
+# The Little MCAR test was not significant, therefore we assume the data to be missing
+# completely at random
+
+#Test whether participants with missing data differ on TSC sum score:
+tsc_by_na <-
+  geq_ibqh_tsc_raw %>%
+  select(-duration, -date, -subscale) %>%
+  mutate(scale_item = paste(scale, item, sep = "_")) %>%
+  select(-scale, -item) %>%
+  spread(scale_item, response) %>% 
+  mutate(na = ifelse(rowSums(is.na(.)) > 0, 1, 0)) %>% 
+  gather("scale_item", "response", 6:77) %>% 
+  separate(scale_item, c("scale", "item"), "_") %>% 
+  group_by(pid, na, scale) %>% 
+  summarise(score = sum(response, na.rm = TRUE)) %>% 
+  filter(scale == "tsc")
+
+summary(lm(score ~ na, tsc_by_na))
+# Oh thank God, the people with missing data do not have significantly different TSC 
+# scores
+
+# Create df for imputation by Amelia:
+for_amelia <- 
+  geq_ibqh_tsc_raw %>%
+  select(-duration, -date, -subscale) %>%
+  mutate(scale_item = paste(scale, item, sep = "_")) %>%
+  select(-scale, -item) %>%
+  spread(scale_item, response)
+
+amelia_bounds <- matrix(c(seq(6, 77), 
+                          rep(1, 20), rep(0,52), 
+                          rep(5, 20), rep(36, 12), rep(120, 40)), 
+                        nrow = 72, ncol = 3)
+
+amelia_output <- amelia(for_amelia, m = 1, idvars = "pid", bounds = amelia_bounds, noms = c("group", "race_ethn", "gender"), boot.type = "none")
+
+write.amelia(obj = amelia_output, file.stem = "geq_ibq_tsc")
+
+geq_ibq_tsc_wide <- rio::import(here::here("geq_ibq_tsc1.csv"), setclass = "tbl_df") %>% 
+  characterize()
+
+# Add GEQ subscales back in:
+geq_subscales <- 
+  geq_long %>% 
+  select(pid, scale, subscale, item)
+
+geq_ibq_tsc_long <- geq_ibq_tsc_wide %>% 
+  select(-V1) %>% 
+  gather("scale_item", "response", 6:77) %>% 
+  separate(scale_item, c("scale", "item"), sep = "_") %>% 
+  left_join(geq_subscales)
+
+# write_csv(geq_ibq_tsc_long, 
+#           path = "/Users/monikalind/Documents/UO/sap/sap_rproj/geq_ibq_tsc_long.csv")
+
+geq_ibq_tsc <- geq_ibq_tsc_long %>% 
+  group_by(pid, group, race_ethn, gender, age, scale) %>%
+  summarise(score = sum(response, na.rm = TRUE)) %>%
+  spread(scale, score) %>%
+  mutate(geq = (geq / 20))
+
+# write_csv(geq_ibq_tsc,
+#           path = "/Users/monikalind/Documents/UO/sap/sap_rproj/geq_ibq_tsc.csv")
+```
+
+```{r reject_code}
+# To create df with sum/global scores, ignoring NAs:
+# geq_ibqh_tsc <- geq_ibqh_tsc_raw %>% 
+#   group_by(pid, group, gender, age, scale) %>% 
+#   summarise(score = sum(response, na.rm = TRUE)) %>% 
+#   spread(scale, score) %>% 
+#   mutate(geq = (geq / 20))
+
+# MCAR test on item-level responses:
+
+# Create long df for item-level MCAR test:
+# geq_ibqh_tsc_mcar_raw <-
+#   geq_ibqh_tsc_raw %>%
+# Taking out extra variables I don't care about and age because it's in long format
+#   select(-duration, -date, -age, -subscale)
+# 
+# LittleMCAR(geq_ibqh_tsc_mcar_raw)
+
+# Significant -- hmmmmm... is this legit? I'm not sure
+
+# Trying an item-level MCAR test on a wide df:
+
+# TestMCARNormality(geq_ibqh_tsc_wide)
+# Warning: More than one missing data pattern should be present.
+# Error in TestMCARNormality(geq_ibqh_tsc_wide) : 
+
+# Mean imputation:
+# This is okay because the missingness is not related to other observed variables like
+# other questionnaires or demographics
+# geq_ibqh_tsc_si <- 
+#   geq_ibqh_tsc_raw %>% 
+#   group_by(pid, scale) %>% 
+#   mutate(response = ifelse(is.na(response), mean(response, na.rm = TRUE), response))
+# 
+# geq_ibqh_tsc <- geq_ibqh_tsc_si %>%
+#   group_by(pid, group, race_ethn, gender, age, scale) %>%
+#   summarise(score = sum(response)) %>%
+#   spread(scale, score) %>%
+#   mutate(geq = (geq / 20))
+```
+

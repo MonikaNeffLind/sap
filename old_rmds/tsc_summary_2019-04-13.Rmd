@@ -1,0 +1,38 @@
+---
+title: "TSC Summary"
+author: "Monika Lind"
+date: "4/13/2019"
+output: html_document
+---
+
+```{r library, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(colorblindr)
+```
+
+```{r import}
+tsc_long <- read_csv("tsc_long.csv")
+
+tsc_long <- tsc_long %>% 
+  mutate(group = as.factor(group),
+         race_ethn = as.factor(race_ethn),
+         gender = as.factor(gender),
+         scale = as.factor(scale))
+
+sum(is.na(tsc_long$response))
+```
+
+```{r tsc_sum}
+tsc_long %>% 
+  group_by(pid, group, gender, scale) %>% 
+  summarise(sum = sum(response, na.rm = TRUE))
+```
+
+```{r descriptives}
+tsc_long %>% 
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, gender) %>% 
+  mutate(sum = sum(response, na.rm = TRUE)) %>% 
+  group_by(gender) %>% 
+  summarise(mean = mean(sum, na.rm = TRUE))
+```

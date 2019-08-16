@@ -1,0 +1,40 @@
+---
+title: "IBQH Summary"
+author: "Monika Lind"
+date: "4/13/2019"
+output: html_document
+---
+
+```{r library, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(colorblindr)
+```
+
+```{r import}
+ibqh_long <- read_csv("ibqh_long.csv")
+
+ibqh_long <- ibqh_long %>% 
+  mutate(group = as.factor(group),
+         race_ethn = as.factor(race_ethn),
+         gender = as.factor(gender),
+         scale = as.factor(scale))
+
+sum(is.na(ibqh_long$response))
+```
+
+```{r ibqh_sum}
+ibqh_long %>% 
+  group_by(pid, group, gender, scale) %>% 
+  summarise(sum = sum(response, na.rm = TRUE))
+```
+
+```{r descriptives}
+ibqh_long %>% 
+  filter(gender == 1 | gender == 2) %>% 
+  group_by(pid, gender) %>% 
+  mutate(sum = sum(response, na.rm = TRUE)) %>% 
+  group_by(gender) %>% 
+  summarise(mean = mean(sum, na.rm = TRUE))
+```
+
+

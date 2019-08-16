@@ -1,0 +1,216 @@
+---
+title: "SAP Poster & Paper Analysis"
+author: "Monika Lind"
+date: "7/18/2019"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r library}
+library(tidyverse)
+library(rio)
+library(here)
+library(psych)
+library(e1071)
+library(sjPlot)
+library(colorblindr)
+```
+
+```{r import}
+geq_ibqh_tsc_long <- 
+  rio::import(here::here("geq_ibq_tsc_long.csv"), setclass = "tbl_df") %>% 
+  characterize() %>% 
+  mutate(group = as.factor(group),
+         race_ethn = as.factor(race_ethn),
+         gender = as.factor(gender),
+         scale = as.factor(scale),
+         subscale = as.factor(subscale))
+
+geq_ibqh_tsc_wide <- 
+  rio::import(here::here("geq_ibq_tsc1.csv"), setclass = "tbl_df") %>% 
+  characterize() %>% 
+  select(-V1) %>% 
+  mutate(group = as.factor(group),
+         race_ethn = as.factor(race_ethn),
+         gender = as.factor(gender))
+
+geq_ibqh_tsc <- 
+  rio::import(here::here("geq_ibq_tsc.csv"), setclass = "tbl_df") %>% 
+  characterize() %>% 
+  mutate(group = as.factor(group),
+         race_ethn = as.factor(race_ethn),
+         gender = as.factor(gender))
+```
+
+```{r cronbachs_alpha}
+# GEQ:
+psych::alpha(geq_ibqh_tsc_wide[,6:25])
+
+# IBQ:
+psych::alpha(geq_ibqh_tsc_wide[,26:37])
+
+# TSC:
+psych::alpha(geq_ibqh_tsc_wide[,38:77])
+```
+
+```{r mean_center_IVs}
+mean_geq <- mean(geq_ibqh_tsc$geq)
+mean_ibqh <- mean(geq_ibqh_tsc$ibqh)
+
+geq_ibqh_tsc <- geq_ibqh_tsc %>% 
+  mutate(mc_geq = (geq - mean_geq),
+         mc_ibqh = (ibqh - mean_ibqh)) 
+```
+
+```{r corr_skew_kurtosis}
+corr.test(geq_ibqh_tsc[,c(5, 9:10, 8)])
+
+map(geq_ibqh_tsc[,6:8], skewness)
+
+map(geq_ibqh_tsc[,6:8], kurtosis)
+```
+
+```{r models}
+#trauma sx by gender harassment
+summary(lm(tsc ~ geq, geq_ibqh_tsc))
+
+#IVs and DV by gender
+summary(lm(geq ~ gender, geq_ibqh_tsc))
+summary(lm(ibqh ~ gender, geq_ibqh_tsc))
+summary(lm(tsc ~ gender, geq_ibqh_tsc))
+
+#IVs and DV by age
+summary(lm(geq ~ age, geq_ibqh_tsc))
+#Age is a significant predictor of IBQ
+summary(lm(ibqh ~ age, geq_ibqh_tsc))
+summary(lm(tsc ~ age, geq_ibqh_tsc))
+
+#trauma sx by age + race/ethnicity + gender + GEQ*IBQH
+summary(lm(tsc ~ age + race_ethn + gender + mc_geq*mc_ibqh, geq_ibqh_tsc))
+```
+
+```{r summary_stats}
+# N by gender
+# 1 is female, 2 is male, 3 is non-binary, 5 is prefer not to say
+geq_ibqh_tsc %>% 
+  group_by(gender) %>% 
+  count()
+
+# N by race/ethnicity
+# 1 is American Indian or Alaska Native, 2 is Asian, 3 is Af-Am, 4 is Native Hawaiian or
+# other Pacific Islander, 5 is Caucasian, 6 is Other
+geq_ibqh_tsc %>% 
+  group_by(race_ethn) %>% 
+  count()
+
+# Mean and SD of age
+mean(geq_ibqh_tsc$age)
+sd(geq_ibqh_tsc$age)
+
+# mean and SD of GEQ, IBQ, TSC
+geq_ibqh_tsc %>% 
+  select(1:8) %>% 
+  gather("scale", "score", -1:-5) %>% 
+  group_by(scale) %>% 
+  summarise(mean = mean(score),
+            sd = sd(score))
+
+# mean and SD by gender of GEQ, IBQ, TSC
+geq_ibqh_tsc %>% 
+  select(1:8) %>% 
+  gather("scale", "score", -1:-5) %>% 
+  group_by(scale, gender) %>% 
+  summarise(mean = mean(score),
+            sd = sd(score))
+
+# mean and SD by gender of GEQ subscales
+geq_ibqh_tsc_long %>% 
+  filter(gender == 1 | gender == 2 | gender == 3,
+         scale == "geq") %>% 
+  group_by(pid, gender, subscale) %>% 
+  summarize(sub_score = mean(response)) %>%
+  group_by(subscale, gender) %>% 
+  summarize(mean = mean(sub_score),
+            sd = sd(sub_score))
+```
+
+```{r tables}
+# Table of multiple regression model for poster:
+poster_model <- lm(tsc ~ gender + mc_geq*mc_ibqh, geq_ibqh_tsc)
+tab_model(poster_model, 
+          terms = c("(Intercept)", "gender2", "mc_geq", "mc_ibqh", "mc_geq:mc_ibqh"), 
+          pred.labels = c("Intercept", "Male", "GEQ", "IBQ", "GEQ*IBQ"), 
+          title = "Current trauma symptoms by gender, harassment, betrayal, and harassment*betrayal", 
+          dv.labels = "TSC-40 Sum Score", 
+          file = here::here("/tables/sap_poster_table.html"), 
+          p.style = "asterisk")
+```
+
+```{r plots}
+# Mean GEQ subscale scores by gender
+geq_ibqh_tsc_long %>% 
+  filter(gender == 1 | gender == 2,
+         scale == "geq") %>% 
+  group_by(pid, gender, subscale) %>% 
+  summarize(sub_score = mean(response)) %>%
+  group_by(subscale, gender) %>% 
+  summarize(n = n(),
+            mean = mean(sub_score, na.rm = TRUE),
+            se = mean/sqrt(n)) %>% 
+  ggplot(aes(subscale, mean, color = gender)) + 
+  geom_errorbar(aes(ymin = mean + qnorm(.025)*se,
+                    ymax = mean + qnorm(.975)*se,
+                    group = gender),
+                size = .5,
+                width = .5,
+                alpha = .7) +
+  geom_point(size = 2) +
+  scale_x_discrete(labels = c("GP", "Inf", 
+                              "SCOB", "SR", 
+                              "WFP")) +
+  scale_y_continuous(limits = c(1, 5)) +
+  scale_color_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  theme_light() +
+  labs(title = "Mean GEQ subscale scores by gender",
+       subtitle = "363 females, 168 males; 95% confidence intervals",
+       x = "GEQ Subscales",
+       y = "Mean Score") +
+  coord_flip()
+
+#ggsave(filename = here::here("/plots/mean_geq_subscale_plot.png"), device = "png", width = 12, height = 9, units = "cm")
+
+# TSC by GEQ scatter plot
+ggplot(geq_ibqh_tsc, aes(geq, tsc)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_light() +
+  labs(title = "Trauma symptoms by gender harassment",
+       x = "GEQ",
+       y = "TSC")
+
+#ggsave(filename = here::here("/plots/tsc_by_geq.png"), device = "png", width = 12, height = 9, units = "cm")
+
+# TSC by IBQ-H scatter plot
+ggplot(geq_ibqh_tsc, aes(ibqh, tsc)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_light() +
+  labs(title = "Trauma symptoms by institutional betrayal",
+       x = "IBQ",
+       y = "TSC")
+
+#ggsave(filename = here::here"/plots/tsc_by_ibq.png"), device = "png", width = 12, height = 9, units = "cm")
+
+# Age is significantly related to IBQH scores
+ggplot(geq_ibqh_tsc, aes(age, ibqh)) +
+  geom_boxplot(aes(group = age)) +
+  geom_jitter(alpha = .3) +
+  geom_smooth(method = "lm")
+```
+
+
+
