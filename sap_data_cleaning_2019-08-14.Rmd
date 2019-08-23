@@ -16,6 +16,9 @@ library(here)
 library(BaylorEdPsych)
 # library(MissMech)
 library(Amelia)
+
+#function to create citation
+citation(package = "Amelia")
 ```
 
 ```{r import}

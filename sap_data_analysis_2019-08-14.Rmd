@@ -17,6 +17,10 @@ library(psych)
 library(e1071)
 library(sjPlot)
 library(colorblindr)
+
+#AAC: function to create citation for packages
+citation(package = "colorblindr")
+
 ```
 
 ```{r import}
@@ -43,6 +47,7 @@ geq_ibqh_tsc <-
   mutate(group = as.factor(group),
          race_ethn = as.factor(race_ethn),
          gender = as.factor(gender))
+
 ```
 
 ```{r cronbachs_alpha}
@@ -54,6 +59,7 @@ psych::alpha(geq_ibqh_tsc_wide[,26:37])
 
 # TSC:
 psych::alpha(geq_ibqh_tsc_wide[,38:77])
+
 ```
 
 ```{r mean_center_IVs}
@@ -66,16 +72,31 @@ geq_ibqh_tsc <- geq_ibqh_tsc %>%
 ```
 
 ```{r corr_skew_kurtosis}
+#correlation matrix
 corr.test(geq_ibqh_tsc[,c(5, 9:10, 8)])
 
+
+#AAC: APA table for means, SDs, and Correlations
+library(apaTables)
+data_corr <- geq_ibqh_tsc %>% 
+  select(5, 9:10, 8)
+table1 <- apa.cor.table(data_corr, filename="Table1_APA.doc", table.number=1)
+table1
+
+
+#skewness calculations
 map(geq_ibqh_tsc[,6:8], skewness)
 
+#kurtosis calculations
 map(geq_ibqh_tsc[,6:8], kurtosis)
 ```
 
 ```{r models}
 #trauma sx by gender harassment
 summary(lm(tsc ~ geq, geq_ibqh_tsc))
+
+#AAC: trauma sx by ibqh
+summary(lm(tsc ~ ibqh, geq_ibqh_tsc))
 
 #IVs and DV by gender
 summary(lm(geq ~ gender, geq_ibqh_tsc))
@@ -90,6 +111,33 @@ summary(lm(tsc ~ age, geq_ibqh_tsc))
 
 #trauma sx by age + race/ethnicity + gender + GEQ*IBQH
 summary(lm(tsc ~ age + race_ethn + gender + mc_geq*mc_ibqh, geq_ibqh_tsc))
+
+
+
+#AAC: hierarchical regressions, with 3 blocks and r squared change
+#install.packages("MBESS")
+library(MBESS)
+block1 <- lm(tsc ~ age + race_ethn + gender, geq_ibqh_tsc)
+block2 <- lm(tsc ~ age + race_ethn + gender + mc_geq + mc_ibqh, geq_ibqh_tsc)
+block3 <- lm(tsc ~ age + race_ethn + gender + mc_geq*mc_ibqh, geq_ibqh_tsc)
+block3_2 <- lm(tsc ~ age + race_ethn + gender + mc_geq*mc_ibqh*gender, geq_ibqh_tsc) #Version 2: with additional interaction and moderation terms
+
+summary(block1)
+summary(block2)
+anova(block1, block2)
+summary(block3)
+anova(block2,block3)
+summary(block3_2)
+
+
+#AAC: hierarchical regression table
+apa.reg.table(block1, block2, block3, filename = "Table3_APA.doc", table.number = 3)
+
+#AAC: get standardized regression coefficients
+library(lm.beta)
+lm.beta(block1)
+lm.beta(block2)
+lm.beta(block3)
 ```
 
 ```{r summary_stats}
@@ -109,6 +157,10 @@ geq_ibqh_tsc %>%
 # Mean and SD of age
 mean(geq_ibqh_tsc$age)
 sd(geq_ibqh_tsc$age)
+
+geq_ibqh_tsc %>% 
+  group_by(age) %>% 
+  count()
 
 # mean and SD of GEQ, IBQ, TSC
 geq_ibqh_tsc %>% 
@@ -135,6 +187,40 @@ geq_ibqh_tsc_long %>%
   group_by(subscale, gender) %>% 
   summarize(mean = mean(sub_score),
             sd = sd(sub_score))
+
+
+
+#AAC: t-tests for GEQ subscales
+ttest_data <- geq_ibqh_tsc_long %>% 
+  filter(gender == 1 | gender == 2,
+         scale == "geq") %>% 
+  group_by(pid, gender, subscale) %>% 
+  summarize(sub_score = mean(response)) %>% 
+  spread(subscale, sub_score)
+
+ttest_data2 <- geq_ibqh_tsc %>% 
+  filter(gender == 1 | gender == 2)
+
+t.test(ttest_data$gp~ttest_data$gender, var.equal = TRUE) #matches lm results, sig difference
+t.test(ttest_data$inf~ttest_data$gender, var.equal = TRUE) #sig difference
+t.test(ttest_data$scob~ttest_data$gender, var.equal = TRUE) #no sig difference
+t.test(ttest_data$sr~ttest_data$gender, var.equal = TRUE) #sig difference
+t.test(ttest_data$wfp~ttest_data$gender, var.equal = TRUE) #sig difference
+
+t.test(ttest_data2$geq~ttest_data2$gender, var.equal = TRUE) #sig difference
+t.test(ttest_data2$ibqh~ttest_data2$gender, var.equal = TRUE) #sig difference
+t.test(ttest_data2$tsc~ttest_data2$gender, var.equal = TRUE) #sig difference
+
+
+#AAC: descriptives of harassment- how many people had 0 harassment and 0 institutional betrayal?
+geq_ibqh_tsc %>% 
+  group_by(gender) %>% 
+  count(geq) #18 people reported no sexual harassment (12 women, 6 men)
+
+geq_ibqh_tsc %>% 
+  group_by(gender) %>% 
+  count(ibqh) #46 women and 39 men reported no IB
+
 ```
 
 ```{r tables}
@@ -163,6 +249,37 @@ geq_ibqh_tsc_long %>%
   ggplot(aes(subscale, mean, color = gender)) + 
   geom_errorbar(aes(ymin = mean + qnorm(.025)*se,
                     ymax = mean + qnorm(.975)*se,
+                    group = gender),
+                size = .5,
+                width = .5,
+                alpha = .7) +
+  geom_point(size = 2) +
+  scale_x_discrete(labels = c("GP", "Inf", 
+                              "SCOB", "SR", 
+                              "WFP")) +
+  scale_y_continuous(limits = c(1, 5)) +
+  scale_color_OkabeIto(name = "Gender",
+                      labels = c("Female", "Male")) +
+  theme_light() +
+  labs(title = "Mean GEQ subscale scores by gender",
+       subtitle = "363 females, 168 males; 95% confidence intervals",
+       x = "GEQ Subscales",
+       y = "Mean Score") +
+  coord_flip()
+
+#AAC Mean GEQ subscale scores by gender + STANDRD ERROR BARS (rather than 95% confidence intervals)
+geq_ibqh_tsc_long %>% 
+  filter(gender == 1 | gender == 2,
+         scale == "geq") %>% 
+  group_by(pid, gender, subscale) %>% 
+  summarize(sub_score = mean(response)) %>%
+  group_by(subscale, gender) %>% 
+  summarize(n = n(),
+            mean = mean(sub_score, na.rm = TRUE),
+            se = mean/sqrt(n)) %>% 
+  ggplot(aes(subscale, mean, color = gender)) + 
+  geom_errorbar(aes(ymin = mean + se,
+                    ymax = mean - se,
                     group = gender),
                 size = .5,
                 width = .5,
