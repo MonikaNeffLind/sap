@@ -63,13 +63,30 @@ psych::alpha(geq_ibqh_tsc_wide[,38:77])
 ```
 
 ```{r mean_center_IVs}
-mean_geq <- mean(geq_ibqh_tsc$geq)
-mean_ibqh <- mean(geq_ibqh_tsc$ibqh)
+#mean_geq <- mean(geq_ibqh_tsc$geq)
+#mean_ibqh <- mean(geq_ibqh_tsc$ibqh)
 
-geq_ibqh_tsc <- geq_ibqh_tsc %>% 
-  mutate(mc_geq = (geq - mean_geq),
-         mc_ibqh = (ibqh - mean_ibqh)) 
+#geq_ibqh_tsc <- geq_ibqh_tsc %>%
+#  mutate(mc_geq = (geq - mean_geq),
+#         mc_ibqh = (ibqh - mean_ibqh))
 ```
+
+
+```{r standardize}
+geq_ibqh_tsc <- geq_ibqh_tsc %>% 
+  mutate(std_geq = scale(geq),
+         std_ibqh = scale(ibqh)) 
+
+mean(geq_ibqh_tsc$std_geq)
+sd(geq_ibqh_tsc$std_geq)
+
+```
+
+```{r sreleveling}
+geq_ibqh_tsc$race <- relevel(geq_ibqh_tsc$race_ethn, ref="5")
+
+```
+
 
 ```{r corr_skew_kurtosis}
 #correlation matrix
@@ -110,14 +127,14 @@ summary(lm(ibqh ~ age, geq_ibqh_tsc))
 summary(lm(tsc ~ age, geq_ibqh_tsc))
 
 #trauma sx by age + race/ethnicity + gender + GEQ*IBQH
-summary(lm(tsc ~ age + race_ethn + gender + mc_geq*mc_ibqh, geq_ibqh_tsc))
+summary(lm(tsc ~ age + race + gender + std_geq*std_ibqh, geq_ibqh_tsc))
 
 
 
 #AAC: hierarchical regressions, with 3 blocks and r squared change
 #install.packages("MBESS")
 library(MBESS)
-block1 <- lm(tsc ~ age + race_ethn + gender, geq_ibqh_tsc)
+block1 <- lm(tsc ~ age + race + gender, geq_ibqh_tsc)
 block2 <- lm(tsc ~ age + race_ethn + gender + mc_geq + mc_ibqh, geq_ibqh_tsc)
 block3 <- lm(tsc ~ age + race_ethn + gender + mc_geq*mc_ibqh, geq_ibqh_tsc)
 block3_2 <- lm(tsc ~ age + race_ethn + gender + mc_geq*mc_ibqh*gender, geq_ibqh_tsc) #Version 2: with additional interaction and moderation terms
