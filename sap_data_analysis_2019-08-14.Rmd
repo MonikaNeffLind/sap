@@ -19,7 +19,7 @@ library(sjPlot)
 library(colorblindr)
 
 #AAC: function to create citation for packages
-citation(package = "colorblindr")
+citation(package = "MBESS")
 
 ```
 
@@ -82,7 +82,7 @@ sd(geq_ibqh_tsc$std_geq)
 
 ```
 
-```{r sreleveling}
+```{r releveling}
 geq_ibqh_tsc$race <- relevel(geq_ibqh_tsc$race_ethn, ref="5")
 
 ```
@@ -90,16 +90,15 @@ geq_ibqh_tsc$race <- relevel(geq_ibqh_tsc$race_ethn, ref="5")
 
 ```{r corr_skew_kurtosis}
 #correlation matrix
-corr.test(geq_ibqh_tsc[,c(5, 9:10, 8)])
+corr.test(geq_ibqh_tsc[,c(5:8)])
 
 
 #AAC: APA table for means, SDs, and Correlations
 library(apaTables)
 data_corr <- geq_ibqh_tsc %>% 
-  select(5, 9:10, 8)
+  select(5:8)
 table1 <- apa.cor.table(data_corr, filename="Table1_APA.doc", table.number=1)
 table1
-
 
 #skewness calculations
 map(geq_ibqh_tsc[,6:8], skewness)
@@ -110,10 +109,10 @@ map(geq_ibqh_tsc[,6:8], kurtosis)
 
 ```{r models}
 #trauma sx by gender harassment
-summary(lm(tsc ~ geq, geq_ibqh_tsc))
+summary(lm(tsc ~ std_geq, geq_ibqh_tsc))
 
 #AAC: trauma sx by ibqh
-summary(lm(tsc ~ ibqh, geq_ibqh_tsc))
+summary(lm(tsc ~ std_ibqh, geq_ibqh_tsc))
 
 #IVs and DV by gender
 summary(lm(geq ~ gender, geq_ibqh_tsc))
@@ -133,11 +132,11 @@ summary(lm(tsc ~ age + race + gender + std_geq*std_ibqh, geq_ibqh_tsc))
 
 #AAC: hierarchical regressions, with 3 blocks and r squared change
 #install.packages("MBESS")
-library(MBESS)
+library(MBESS) #package to calculate confidence intervals
 block1 <- lm(tsc ~ age + race + gender, geq_ibqh_tsc)
-block2 <- lm(tsc ~ age + race_ethn + gender + mc_geq + mc_ibqh, geq_ibqh_tsc)
-block3 <- lm(tsc ~ age + race_ethn + gender + mc_geq*mc_ibqh, geq_ibqh_tsc)
-block3_2 <- lm(tsc ~ age + race_ethn + gender + mc_geq*mc_ibqh*gender, geq_ibqh_tsc) #Version 2: with additional interaction and moderation terms
+block2 <- lm(tsc ~ age + race + gender + std_geq + std_ibqh, geq_ibqh_tsc)
+block3 <- lm(tsc ~ age + race + gender + std_geq*std_ibqh, geq_ibqh_tsc)
+block3_2 <- lm(tsc ~ age + race + gender + std_geq*std_ibqh*gender, geq_ibqh_tsc) #Version 2: with additional interaction and moderation terms
 
 summary(block1)
 summary(block2)
@@ -163,6 +162,7 @@ lm.beta(block3)
 geq_ibqh_tsc %>% 
   group_by(gender) %>% 
   count()
+
 
 # N by race/ethnicity
 # 1 is American Indian or Alaska Native, 2 is Asian, 3 is Af-Am, 4 is Native Hawaiian or
@@ -204,7 +204,6 @@ geq_ibqh_tsc_long %>%
   group_by(subscale, gender) %>% 
   summarize(mean = mean(sub_score),
             sd = sd(sub_score))
-
 
 
 #AAC: t-tests for GEQ subscales
@@ -302,18 +301,17 @@ geq_ibqh_tsc_long %>%
                 width = .5,
                 alpha = .7) +
   geom_point(size = 2) +
-  scale_x_discrete(labels = c("GP", "Inf", 
-                              "SCOB", "SR", 
-                              "WFP")) +
+  scale_x_discrete(labels = c("Gender \n Policing", "Infantilizing", 
+                              "Crude/Offensive \n Behavior", "Sexist \n Remarks", 
+                              "Work/Family \n Policing")) +
   scale_y_continuous(limits = c(1, 5)) +
   scale_color_OkabeIto(name = "Gender",
                       labels = c("Female", "Male")) +
-  theme_light() +
-  labs(title = "Mean GEQ subscale scores by gender",
-       subtitle = "363 females, 168 males; 95% confidence intervals",
-       x = "GEQ Subscales",
-       y = "Mean Score") +
+  theme_light(9) +
+  labs(x = "GEQ Subscales\n",
+       y = "\nMean Score") +
   coord_flip()
+ggsave(filename = here::here("/plots/tsc_by_geq_apa.png"), device = "png", width = 12, height = 8, units = "cm")
 
 #ggsave(filename = here::here("/plots/mean_geq_subscale_plot.png"), device = "png", width = 12, height = 9, units = "cm")
 
