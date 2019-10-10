@@ -305,37 +305,36 @@ geq_ibqh_tsc_long %>%
                               "Crude/Offensive \n Behavior", "Sexist \n Remarks", 
                               "Work/Family \n Policing")) +
   scale_y_continuous(limits = c(1, 5)) +
-  scale_color_OkabeIto(name = "Gender",
+  scale_color_OkabeIto(name = "Gender of \nParticipant",
                       labels = c("Female", "Male")) +
   theme_light(9) +
   labs(x = "GEQ Subscales\n",
        y = "\nMean Score") +
   coord_flip()
-ggsave(filename = here::here("/plots/tsc_by_geq_apa.png"), device = "png", width = 12, height = 8, units = "cm")
+
+#ggsave(filename = here::here("/plots/tsc_by_geq_apa.png"), device = "png", width = 12, height = 8, units = "cm")
 
 #ggsave(filename = here::here("/plots/mean_geq_subscale_plot.png"), device = "png", width = 12, height = 9, units = "cm")
 
 # TSC by GEQ scatter plot
 ggplot(geq_ibqh_tsc, aes(geq, tsc)) +
-  geom_point() +
+  geom_point(alpha = .5) +
   geom_smooth(method = "lm") +
   theme_light() +
-  labs(title = "Trauma symptoms by gender harassment",
-       x = "GEQ",
-       y = "TSC")
+  labs(x = "Gender Harassment",
+       y = "Trauma Symptoms")
 
 #ggsave(filename = here::here("/plots/tsc_by_geq.png"), device = "png", width = 12, height = 9, units = "cm")
 
 # TSC by IBQ-H scatter plot
 ggplot(geq_ibqh_tsc, aes(ibqh, tsc)) +
-  geom_point() +
+  geom_point(alpha = .5) +
   geom_smooth(method = "lm") +
   theme_light() +
-  labs(title = "Trauma symptoms by institutional betrayal",
-       x = "IBQ",
-       y = "TSC")
+  labs(x = "Institutional Betrayal",
+       y = "Trauma Symptoms")
 
-#ggsave(filename = here::here"/plots/tsc_by_ibq.png"), device = "png", width = 12, height = 9, units = "cm")
+#ggsave(filename = here::here("/plots/tsc_by_ibq.png"), device = "png", width = 12, height = 9, units = "cm")
 
 # Age is significantly related to IBQH scores
 ggplot(geq_ibqh_tsc, aes(age, ibqh)) +
