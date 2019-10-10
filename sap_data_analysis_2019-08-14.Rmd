@@ -317,9 +317,10 @@ geq_ibqh_tsc_long %>%
 #ggsave(filename = here::here("/plots/mean_geq_subscale_plot.png"), device = "png", width = 12, height = 9, units = "cm")
 
 # TSC by GEQ scatter plot
-ggplot(geq_ibqh_tsc, aes(geq, tsc)) +
+ggplot(geq_ibqh_tsc, aes(std_geq, tsc)) +
   geom_point(alpha = .5) +
   geom_smooth(method = "lm") +
+  scale_x_continuous(limits = c(-2, 3.5), breaks = seq(-2, 3.5, 1)) +
   theme_light() +
   labs(x = "Gender Harassment",
        y = "Trauma Symptoms")
@@ -327,9 +328,10 @@ ggplot(geq_ibqh_tsc, aes(geq, tsc)) +
 #ggsave(filename = here::here("/plots/tsc_by_geq.png"), device = "png", width = 12, height = 9, units = "cm")
 
 # TSC by IBQ-H scatter plot
-ggplot(geq_ibqh_tsc, aes(ibqh, tsc)) +
+ggplot(geq_ibqh_tsc, aes(std_ibqh, tsc)) +
   geom_point(alpha = .5) +
   geom_smooth(method = "lm") +
+  scale_x_continuous(limits = c(-2, 3.5), breaks = seq(-2, 3.5, 1)) +
   theme_light() +
   labs(x = "Institutional Betrayal",
        y = "Trauma Symptoms")
